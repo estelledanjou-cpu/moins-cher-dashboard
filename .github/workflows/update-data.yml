@@ -1,0 +1,51 @@
+name: Régénérer les données du dashboard Moins Cher
+
+on:
+  schedule:
+    # Tous les jours à 6h00 UTC (7h/8h en France selon l'heure d'été)
+    - cron: '0 6 * * *'
+  workflow_dispatch: {}  # permet aussi de le lancer manuellement depuis GitHub
+
+jobs:
+  update-data:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout du repo
+        uses: actions/checkout@v4
+
+      - name: Installer Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Installer les dépendances
+        run: pip install -r requirements.txt
+
+      # Authentification à BigQuery via un compte de service.
+      # Le JSON de la clé doit être stocké dans un secret GitHub nommé GCP_SA_KEY
+      # (Settings > Secrets and variables > Actions > New repository secret).
+      - name: Authentification Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
+
+      - name: Générer data.json
+        run: python generate_data.py
+
+      # --- Publication du fichier ---
+      # À ADAPTER selon l'hébergement réel de files.papernest.com.
+      # Ci-dessous, deux options courantes : upload vers un bucket GCS,
+      # ou simplement commit du JSON dans le repo (si le repo lui-même sert de source).
+
+      # OPTION A — si files.papernest.com est servi depuis un bucket Google Cloud Storage :
+      # - name: Publier vers GCS
+      #   run: gsutil cp output/data.json gs://VOTRE-BUCKET/internal/seo/moins-cher-project-data
+
+      # OPTION B — si le JSON doit juste être commité dans le repo (ex: GitHub Pages) :
+      - name: Commit du JSON mis à jour
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add output/data.json
+          git diff --staged --quiet || git commit -m "chore: mise à jour automatique des données ($(date -u +%Y-%m-%d))"
+          git push
