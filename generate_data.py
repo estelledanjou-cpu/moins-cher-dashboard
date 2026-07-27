@@ -19,7 +19,6 @@ Usage :
 """
 
 import json
-import math
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -183,10 +182,8 @@ def fetch_ga4_components(client: bigquery.Client) -> pd.DataFrame:
 # Assemblage du JSON final
 # ---------------------------------------------------------------------------
 def safe_num(v):
-    """None/NaN -> null JSON ; sinon float arrondi."""
-    if v is None:
-        return None
-    if isinstance(v, float) and math.isnan(v):
+    """None/NaN/NA -> null JSON ; sinon float arrondi."""
+    if v is None or pd.isna(v):
         return None
     return round(float(v), 4)
 
